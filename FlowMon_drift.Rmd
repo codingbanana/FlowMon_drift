@@ -1,0 +1,367 @@
+---
+title: "Breakout detection for Flow monitoring data"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+author: "[Hao Zhang](mailto:hao.zhang@phila.gov)"
+output:
+    html_document:
+        toc: yes
+        toc_float: true
+        collapsed: false
+        smooth_scroll: false
+        theme: united
+        highlight: tango
+params:
+    qtrYr: "Q3-17"
+subtitle: "For Period in `r params$qtrYr`"
+
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggrepel)
+library(lubridate)
+library(foreach)
+library(doParallel)
+library(knitr)
+library(kableExtra)
+library(RPostgreSQL)
+library(BreakoutDetection)
+library(grid)
+library(gridExtra)
+library(zoo)
+```
+
+```{r qtrYr, message=FALSE, warning=FALSE, include=FALSE}
+qtrYr <- as.yearqtr(params$qtrYr,format='Q%q-%y') 
+date_limits <- as.POSIXct(as.character(
+    c(as.Date(qtrYr),
+      as.Date(qtrYr,frac=1)+days(1))),
+    format="%Y-%m-%d")
+date_breaks <- seq(date_limits[1], date_limits[2], by='1 day')
+date_breaks <- subset(date_breaks, day(date_breaks) %in% c(1,10,20))
+```
+
+
+```{r data, message=FALSE, warning=FALSE, include=FALSE}
+drv <- dbDriver('PostgreSQL')
+con <- dbConnect(
+    drv,
+    dbname = 'CentralDB',
+    host = '170.115.81.37',
+    user = 'flowmon_drift',
+    password = 'water.123',
+    port = 5432
+)
+
+query <- paste0(
+    'SELECT d."DateTime" AS dt, i."MANHOLE_ID" AS mhid, d."Level_1" AS lvl, d."Vel_1" AS vel ',
+    'FROM flow.data d LEFT JOIN flow.inventory i ON d.id=i.id ',
+    'WHERE i."qtrYr" =\'', params$qtrYr, "' ",
+    'ORDER BY i."MANHOLE_ID", d."DateTime"'
+)
+d <- dbGetQuery(con, query)
+
+query <- paste0(
+    'SELECT "GaugeNo","DateTime","Rainfall" FROM pwdrg.tblmodelrain ',
+    'WHERE "DateTime">=\'',date_limits[1],'\' AND "DateTime"<=\'',date_limits[2],'\'')
+r <- dbGetQuery(con, query)
+
+r.ref <- dbGetQuery(con, 'SELECT "MANHOLE_ID","GaugeNo" FROM flow.manhole')
+
+o <- dbDisconnect(con)
+```
+
+
+
+## Breakouts: 
+
+```{r function, message=FALSE, warning=FALSE, include=FALSE}
+# function to download x months of vel and lvl data
+breakouts <- function(site, plot=F){
+   # lvl ---------------
+    lvl.hr <- d %>%  
+        filter(mhid==site & minute(dt)==0) %>% 
+        transmute(timestamp=dt,
+                  count=lvl) 
+    
+    lvl.breakouts <- breakout(
+                 lvl.hr, 
+                 min.size = 240, # equals 10 days of data,
+                                 # i.e., the shift must last more than 10 days
+                 method = 'multi',
+                 degree=1,      # default
+                 beta=0.008,    # default, but cannot be omitted
+                 percent=0.10,
+                 plot=F)
+    
+    if(length(lvl.breakouts$loc)){
+        breakout.ts <- lvl.hr[lvl.breakouts$loc, "timestamp"]
+        offsets <- lvl.hr %>%
+            group_by(grp = findInterval(timestamp,
+                                        vec = breakout.ts,
+                                        rightmost.closed = T,
+                                        left.open = T)) %>%
+            summarise(mean=mean(count)) %>%
+            mutate(offset=lead(mean)-mean) %>%
+            filter(row_number()!=n()) %>%
+            pull(offset)
+
+        medians <- lvl.hr %>%
+            group_by(grp = findInterval(timestamp,
+                                        vec = breakout.ts,
+                                        rightmost.closed = T,
+                                        left.open = T)) %>%
+            summarise(median=median(count)) %>% 
+            pull(median)
+        
+        lvl.hlines <- data.frame(
+            x=c(min(lvl.hr$timestamp), breakout.ts),
+            xend=c(breakout.ts, max(lvl.hr$timestamp)),
+            y=medians,
+            yend=medians)
+        
+        lvl.diff <- data.frame(
+            site=site,
+            type="level",
+            timestamp=breakout.ts,
+            offset=offsets)
+    } else {
+        lvl.diff <- data.frame(
+            site=character(0),
+            type=character(0),
+            timestamp=as.POSIXct(character(0)),
+            offset=numeric(0))
+    }
+
+    # vel ------
+    vel.hr <- d %>%  
+        filter(mhid==site & minute(dt)==0) %>% 
+        transmute(timestamp=dt,
+                      count=vel)
+
+    vel.breakouts <- 
+        breakout(vel.hr,
+                 min.size = 240, # equals 10 days of data,
+                                 # i.e., the shift must last more than 10 days
+                 method = 'multi',
+                 degree=1,      # default
+                 beta=0.008,    # default, but cannot be omitted
+                 percent=0.10,
+                 plot=F)
+
+    if(length(vel.breakouts$loc)){
+        breakout.ts <- vel.hr[vel.breakouts$loc, "timestamp"]
+        offsets <- vel.hr %>%
+            group_by(grp = findInterval(timestamp,
+                                        vec = breakout.ts,
+                                        rightmost.closed = T,
+                                        left.open = T)) %>%
+            summarise(mean=mean(count)) %>%
+            mutate(offset=lead(mean)-mean) %>%
+            filter(row_number()!=n()) %>%
+            pull(offset)
+
+        medians <- vel.hr %>%
+            group_by(grp = findInterval(timestamp,
+                                        vec = breakout.ts,
+                                        rightmost.closed = T,
+                                        left.open = T)) %>%
+            summarise(median=median(count)) %>% 
+            pull(median)
+        
+        vel.hlines <- data.frame(
+            x=c(min(vel.hr$timestamp), breakout.ts),
+            xend=c(breakout.ts, max(vel.hr$timestamp)),
+            y=medians,
+            yend=medians)
+        
+        vel.diff <- data.frame(
+            site=site,
+            type="velocity",
+            timestamp=breakout.ts,
+            offset=offsets)
+    } else {
+        vel.diff <- data.frame(
+            site=character(0),
+            type=character(0),
+            timestamp=as.POSIXct(character(0)),
+            offset=numeric(0))
+    }
+
+    out <- list()
+    out$tbl <- rbind(lvl.diff, vel.diff)
+    
+    # plot -------
+    if(plot==T) {
+        # Gauge No
+        GN <- subset(r.ref, MANHOLE_ID==site)[,2]
+        # rainfall plot
+        if(!identical(GN,integer(0))){
+            rain.hr <- filter(r, GaugeNo==GN)
+            if(nrow(rain.hr)==0) rain.hr <- filter(r, GaugeNo==1)
+        } else {
+            rain.hr <- filter(r, GaugeNo==1)
+        }
+        
+        rain.hr <-  rain.hr %>% 
+            group_by(timestamp=cut(DateTime, 'hour')) %>% 
+            summarise(depth=sum(Rainfall)) %>% 
+            mutate(timestamp=as.POSIXct(timestamp))
+        
+        rain.plot <- ggplot(rain.hr)+
+            geom_col(aes(x=timestamp, y=depth), size=0.1, color='black')+
+            scale_y_reverse() +
+            ylab('rainfall (in)')+
+            theme_bw()+
+            theme(axis.title.x=element_blank(),
+                  axis.text.x=element_blank(),
+                  axis.ticks.x=element_blank())
+            
+        
+        # level plot
+        lvl.plot <- ggplot(lvl.hr)+
+            geom_line(aes(x=timestamp, y=count), size=.1, color='black',alpha=0.6)+
+            # geom_smooth(aes(x=timestamp, y=count), color='grey44',
+            #             method = 'loess',span=0.3,
+            #             se = T)+
+            ylab("level (in)") +
+            coord_cartesian(xlim=date_limits)+    
+            scale_x_datetime(breaks = pretty(date_limits,n=9), date_labels = "%b%d") +
+            scale_y_continuous(breaks = pretty(lvl.hr$count, n = 10))+
+            theme_bw()+
+            theme(legend.position="none",
+                  axis.title.x=element_blank())
+        # add annotation
+        if(nrow(lvl.diff)){
+            lvl.plot <- lvl.plot +
+                # geom_vline(xintercept=lvl.diff$timestamp,
+                #            color='#F8766D')+
+                geom_segment(data=lvl.hlines, aes(x=x, xend=xend, y=y, yend=yend),
+                           color='red', size=1) +
+                geom_label_repel(
+                    data=lvl.diff,
+                    aes(x= timestamp,
+                        y= max(lvl.hr$count),
+                        label= paste(round(offset, 2),'in \n', 
+                                    format(timestamp,"%Y/%m/%d"))),
+                    segment.color = 'transparent',
+                    colour='black')
+        }
+        
+        #velocity plot
+        vel.plot <- ggplot(vel.hr)+
+            geom_line(aes(x=timestamp, y=count), size=.1,color='black',alpha=0.6)+
+            # geom_smooth(aes(x=timestamp, y=count), color='grey44',
+            #             method = 'loess',span=0.3,
+            #             se = T)+
+            ylab("velocity (ft/s)") +
+            scale_x_datetime(breaks = pretty(date_limits, n=9), date_labels = "%b%d") +
+            scale_y_continuous(breaks = pretty(vel.hr$count, n = 10)) +
+            coord_cartesian(xlim=date_limits)+    
+            theme_bw()+
+            theme(legend.position="none",
+                  axis.title.x=element_blank())
+        # add annotation
+        if(nrow(vel.diff)){
+            vel.plot <- vel.plot +
+                # geom_vline(xintercept=vel.diff$timestamp,color='#00BFC4')+
+                geom_segment(data=vel.hlines, aes(x=x, xend=xend, y=y, yend=yend),
+                             color='red', size=1) +
+                geom_label_repel(
+                    data=vel.diff,
+                    aes(x= timestamp,
+                        y= max(vel.hr$count),
+                        label= paste(round(offset, 2),'in \n', 
+                                    format(timestamp,"%Y/%m/%d"))),
+                    segment.color = 'transparent',
+                    colour='black')
+        }
+        out$rain.plot <- rain.plot
+        out$lvl.plot <- lvl.plot
+        out$vel.plot <- vel.plot
+    }
+    
+    return(out)
+}
+
+# test case
+# site='IALL-0008'
+# plot=T
+# tst <- breakouts(site, plot)
+```
+
+```{r calculation, message=FALSE, warning=FALSE, include=FALSE}
+# Calculate the number of cores
+no_cores <- detectCores() - 2 
+cl <- makeCluster(no_cores,type='PSOCK')
+registerDoParallel(cl) 
+
+sites <- unique(d$mhid)
+res <- foreach(site = sites,
+               .packages = c("BreakoutDetection","RODBC",
+                             "tidyverse", "lubridate", "ggrepel"),
+               .combine = list,
+               .multicombine = T,
+               .maxcombine = length(sites)) %dopar% 
+               {
+                  breakouts(site, plot=T)
+               }
+stopCluster(cl)
+names(res) <- sites
+```
+
+```{r table, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+tbl <- map(res, 'tbl')
+tbl <- tbl[map_lgl(tbl, is.data.frame)] %>% 
+        bind_rows() %>% 
+    mutate(offset=round(offset, 2))
+    
+order <- tbl %>% 
+    group_by(site) %>% 
+    summarize(max=max(abs(offset))) 
+    
+out.sorted <- tbl %>% 
+    merge(order, all.x = T) %>% 
+    arrange(desc(max), site, type, timestamp) %>% 
+    select(-max)
+
+kable(out.sorted) %>%
+    kable_styling(bootstrap_options = c("striped", "hover",
+                                        "condensed", "responsive"),
+                  full_width = F, position = 'center')
+```
+
+```{r plot, echo=FALSE, fig.asp=0.5, fig.width=10, message=FALSE, warning=FALSE, results='asis'}
+sites.with.breakouts <- out.sorted %>% 
+    select(site) %>% 
+    unique() %>% 
+    pull(site)
+
+for (site in sites.with.breakouts){
+    # group sub-plots into one plot
+    gA <- ggplotGrob(res[site][[1]]$lvl.plot)
+    gB <- ggplotGrob(res[site][[1]]$vel.plot)
+    gC <- ggplotGrob(res[site][[1]]$rain.plot)
+    gB$widths <- gA$widths
+    gC$widths <- gA$widths
+    grid.arrange(gC, gC, gA, gB, ncol=2, nrow=2, heights=c(2,4), widths=c(6,6),
+                 top=textGrob(site, gp=gpar(fontsize=16,font=2),
+                              just=c(3,0.5)))
+}
+
+```
+
+## Appendix: A complete list of monitored sites
+
+```{r plot_all, echo=FALSE, fig.asp=0.5, fig.width=10, message=FALSE, warning=FALSE}
+for (site in sites){
+    # group sub-plots into one plot
+    gA <- ggplotGrob(res[site][[1]]$lvl.plot)
+    gB <- ggplotGrob(res[site][[1]]$vel.plot)
+    gB$widths <- gA$widths
+    gC$widths <- gA$widths
+    grid.arrange(gC, gC, gA, gB, ncol=2, nrow=2, heights=c(2,4), widths=c(6,6),
+                 top=textGrob(site, gp=gpar(fontsize=16,font=2),
+                              just=c(3,0.5)))
+}
+```
