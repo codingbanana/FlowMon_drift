@@ -1,7 +1,0 @@
-"0","qtrYr <- as.yearqtr(params$qtrYr,format='Q%q-%y') "
-"0","date_limits <- as.POSIXct(as.character("
-"0","    c(as.Date(qtrYr),"
-"0","      as.Date(qtrYr,frac=1)+days(1))),"
-"0","    format=""%Y-%m-%d"")"
-"0","date_breaks <- seq(date_limits[1], date_limits[2], by='1 day')"
-"0","date_breaks <- subset(date_breaks, day(date_breaks) %in% c(1,10,20))"
