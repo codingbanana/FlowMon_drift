@@ -22,6 +22,19 @@ The analysis is implemented in a program written in R, and the EDM algorithm is 
 
 ### BACKGROUND
 
+#### Combined and Sanitary Sewer System Model of Philadelphia
+The Philadelphia Water Department (PWD) maintains hydrologic and hydraulic models of the combined sewer collection system for planning, management and compliance purposes. PWD relies on these models to evaluate the effectiveness of existing and proposed CSO control measures. Efforts are being made to refine the models and improve their accuracy as the program progresses from planning to implementation phases. Seweage level and velocity at over 400 manholes have been monitored by the PWD since the 2000s, which are used for various model calibration/validation purposes. 
+Accurate measurements ensures
+Due to the high solid content in sewage, flow data at sewer pipes (level, velocity) suffered from breakouts (mean shift, ramp up) over the time caused by sensor ragging, pipe clogging, etc. A stringent Quality Control (QC) protocol is conducted before the data can be used for Hydrologic & Hydraulic modeling tasks. As one QC measure, the water level and velocity are examined to detect any potential breakout.
+
+#### Change point analysis
+
+
+
+
+Since flow data fluctuates with rainfall-runoff events, the breakout detection algorithm must be robust to avoid the interference of runoff responses.
+
+
 logic: sewerage contain large solid contents -> flow monitoring sensor often get ragged | pipe surcharge -> flow data (CS, SS) influenced by rain events -> robust breakout detection is required -> several change point detection techniques available and applicable in various industries -> method 1 -> method 2 -> method 3
 
 PWD monitors flow data for model calibration. 
