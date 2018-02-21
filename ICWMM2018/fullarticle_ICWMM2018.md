@@ -22,21 +22,42 @@ The analysis is implemented in a program written in R, and the EDM algorithm is 
 ### 1  BACKGROUND
 
 #### 1.1  Combined and Sanitary Sewer System Model of Philadelphia
-The Philadelphia Water Department (PWD) maintains hydrologic and hydraulic models of the combined sewer collection system for planning, management and compliance purposes. PWD relies on these models to evaluate the effectiveness of existing and proposed CSO control measures. Efforts are being made to refine the models and improve their accuracy as the program progresses from planning to implementation phases. Since the 2000s, PWD has monitored the seweage level and velocity at over 400 manholes all over the city, which are served for various model calibration/validation tasks.  
+
+The Philadelphia Water Department (PWD) maintains hydrologic and hydraulic models of the combined sewer collection system for planning, management and compliance purposes. PWD relies on these models to evaluate the effectiveness of existing and proposed CSO control measures. Efforts are being made to refine the models and improve their accuracy as the program progresses from planning to implementation phases. PWD has been monitoring the sewerage level and velocity at over 400 manholes all over the city since the 2000s, which are served for various model calibration/validation tasks.  
 
 Due to the high solid content in sewage, flow data at sewer pipes (level, velocity) may suffered from breakouts (mean shift, ramp up) over the time due to sensor ragging, clogging, pipe surcharging, etc. A stringent Quality Control (QC) protocol is conducted before the data can be used for Hydrologic & Hydraulic modeling tasks. As one QC measure, the water level and velocity time-series are examined to detect any potential breakout. Since a breakout isn’t always obvious due to the range of the observed values, visual detection of breakouts may not be sufficient, and thus a programmatic approach that can automatically detect breakouts is imperative. 
 
 Since flow data at sewer pipes fluctuates with rainfall-runoff events, the runoff response may interfere the breakout detection. Therefore, the algorithm must be robust against the presence of anomalies.
 
-#### 1.2  Change point analysis
 
-In statistics, the 'breakout' belongs to the change point analysis, which has been widely researched over the past 50 years, and has been applied in a wide variety of fields, such as finance (Edwards et al 2012), genetics (Chen and Gupta 2011), and signal processing (Basseville 1988). As we've entered the Big Data era, it has gain it's popularity in cloud services(James, et al. 2016). 
+### 2  OBJECTIVES
 
-A breakout is typically characterized by two steady states and an intermediate transition period. Broadly speaking, breakouts have two flavors:
+Measurement Accuracy determines the overall model quality. This study aims to develop a workflow as a QA measure for flow monitoring data by utilizing a sound change point detection algorithm. First, several algorithms are compared, and the method that met the following requirements are selected for this study:
 
--   Mean shift: A sudden jump in the time series corresponds to a mean shift. A sudden jump in CPU utilization from 40% to 60% would exemplify a mean shift.
+-   can detect mulitple breakouts 
+-   can detect multiple types of change, e.g., ramping, change in variation, etc 
+-   data is multivariate time series, often non-normal distributed
+-   data includes anomalies, e.g. runoff responses 
+-   quick enough for online analysis
 
--   Ramp up: A gradual increase in the value of the metric from one steady state to another constitutes a ramp up. A gradual increase in CPU utilization from 40% to 60% would exemplify a ramp up.
+After the algorithm is selected, non-trivial parameters of the model are carefully tuned to match the expected outcome. 
+
+Finally, a computer program is developed in the R statistical programming language for analyzing flow monitoring data, and generating quarterly reports based on a Rmarkdown template. The report is updated bi-weekly via Window Task Scheduler.
+
+-----------------------------------------------------------------------------------
+-   importance of this research: improve data quality, detect potential sensor malfunction for large datasets (low latency, high reliability) 
+
+-   compare methods, pick a sound breakout detection technique that:
+
+-   refine model parameters 
+
+-   create an application that can be triggered automatically 
+------------------------------------------------------------------------------------
+
+### 3  METHODOLOGY
+#### 3.1  Change point analysis
+
+In statistics, the 'breakout detection' belongs to the change point analysis, which has been widely researched over the past 50 years, and has been applied in a wide variety of fields, such as finance (Edwards et al 2012), genetics (Chen and Gupta 2011), and signal processing (Basseville 1988). As we've entered the Big Data era, it has gain it's popularity in cloud services (James, et al. 2016).
 
 Change point analysis answers the following questions: 
 
@@ -48,6 +69,14 @@ Change point analysis answers the following questions:
 
 -   how significant is the change point?
 
+For data z<sub>1</sub>,…,z<sub>n</sub>, if a changepoint exists at τ, then z<sub>1</sub>,…,z<sub>τ</sub> differ from z<sub>τ+1</sub>,…,z<sub>n</sub> in some way.
+
+A breakout is typically characterized by two steady states and an intermediate transition period. 
+There are many different types of change. Broadly speaking, breakouts have two flavors:
+
+-   Mean shift: A sudden jump in the time series corresponds to a mean shift. A sudden jump in CPU utilization from 40% to 60% would exemplify a mean shift.
+
+-   Ramp up: A gradual increase in the value of the metric from one steady state to another constitutes a ramp up. A gradual increase in CPU utilization from 40% to 60% would exemplify a ramp up.
 
 Numerous changepoint detection algorithms have been developed and applied in industries (Rodionov 2005). Depending on the data distribution assumption, a breakout detection algorithm generally falls into two categories: parametric and non-parametric. The parametric analysis assumes that the observed distributions belong to a family of distributions, while a non-parametric approach do not make such assumption and use density estimation instead. Common parametric methods are PELT (Killick et al, 2012), ..., and non-parametric methods (Pohlert 2018), such as E-divisive (Matteson & James 2012), ...
 
@@ -63,13 +92,9 @@ Several R packages are available for breakout detection, such as:
 
 -   `BreakoutDetection`: EDM
 
-
-
 Based on its application, a breakout detection can be designed for online analytics, which means the data is streaming into the model; or offline analytics, where the data are processed in batches. Currently the flow data are collected bi-weekly by sub-contractors, therefore the breakout detection is processed in offline manner. In future, it's expected to receive real-time data and the analysis could be executed more frequently for early response.    
 
-####  1.3  E-divisive with medians (EDM)
-
-EDM recursively partitions a time series and uses a permutation test to determine change points.
+####  3.2  E-divisive with medians (EDM)
 
 The EDM has following advantages: 
 1. EDM uses rolling median as the statistical metrics, which is robust to the presence of anomalies; 
@@ -77,13 +102,13 @@ The EDM has following advantages:
 3. EDM takes a non-parametric approach, meaning the model will adapt to the data's underlying distribution, and therefore can detect when distribution changes;
 4. EDM is fast, as it uses interval trees to efficiently approximate the median. 
 
-EDM is a novel statistical technique that employes energy statistics (E-divisive) to detect divergence of means. The idea of energy statistics is to compare the distances of means of two random variables contained within a larger time series. 
+EDM is a novel statistical technique that employs energy statistics (E-divisive) to detect divergence of means. The idea of energy statistics is to compare the distances of means of two random variables contained within a larger time series. 
 
 The e-divisive method recursively partitions a time series and uses a permutation test to determine change points, but it is computationally intensive. 
 
 In addition, EDM is non-parametric. This is important since the distribution of production data seldom (if at all) follows the commonly assumed normal distribution or any other widely accepted model. 
 
-E-divisive is a non-parameteric method, and in general can also be used to detect change in distribution.  To be robust against the presence of anomalies, EDM uses the rolling median as a local smoother to the raw data.
+E-divisive is a non-parametric method, and in general can also be used to detect change in distribution.  To be robust against the presence of anomalies, EDM uses the rolling median as a local smoother to the raw data.
 
 The significance of the breakout is determined by permutation test, where data from the two time series are permutated a finite number of times. 
 
@@ -134,32 +159,6 @@ PWD monitors flow data for model calibration.
     
         -   EDM
 --------------------------------------------------------------------------------------
-
-### 2  OBJECTIVES
-
-Measurement Accuracy determines the overall model quality. This study aims to develop a workflow as a QA measure for flow monitoring data by utilizing a sound change point detection algorithm. First, several algorithms are compared, and the method that met the following requirements are selected for this study:
-
--   can detect mulitple breakouts 
--   can detect multiple types of change, e.g., ramping, change in variation, etc 
--   data is multivariate time series, often non-normal distributed
--   data includes anomalies, e.g. runoff responses 
--   quick enough for online analysis
-
-After the algorithm is selected, non-trivial parameters of the model are carefully tuned to match the expected outcome. 
-
-Finally, a computer program is developed in the R statistical programming language for analyzing flow monitoring data, and generating quarterly reports based on a Rmarkdown template. The report is updated bi-weekly via Window Task Scheduler.
-
------------------------------------------------------------------------------------
--   importance of this research: improve data quality, detect potential sensor malfunction for large datasets (low latency, high reliability) 
-
--   compare methods, pick a sound breakout detection technique that:
-
--   refine model parameters 
-
--   create an application that can be triggered automatically 
-------------------------------------------------------------------------------------
-
-### 3  METHODOLOGY
 
 [Methods comparison] ---very briefly explain the reason of why using EDM
 
@@ -219,7 +218,7 @@ Implementation:  A R markdown document is developed for generating reports, incl
 
 The quarterly report is generated bimonthly when new data comes in. It's expected to be completely online when data streaming becomes available. 
 
-![](THL-0085_Q1-16.png)
+![](LFLL_0015.png)
 
 As seen, ...
 

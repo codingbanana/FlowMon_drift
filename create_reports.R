@@ -1,7 +1,7 @@
 library(knitr)
 
 qtrYrs <- paste0("Q", 1:4,"-" ,
-                 rep(16:17, each=4))
+                 rep(14:17, each=4))
 
 for (qtrYr in qtrYrs)
     rmarkdown::render(input = 'FlowMon_drift.Rmd',

@@ -271,7 +271,7 @@ breakouts <- function(site, plot=F){
                     data=vel.diff,
                     aes(x= timestamp,
                         y= max(vel.hr$count),
-                        label= paste(round(offset, 2),'in \n', 
+                        label= paste(round(offset, 2),'ft/s \n', 
                                     format(timestamp,"%Y/%m/%d"))),
                     segment.color = 'transparent',
                     colour='black')
