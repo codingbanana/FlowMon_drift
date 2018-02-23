@@ -10,7 +10,7 @@ BreakoutDetection is an open-source R package that makes breakout detection simp
 
 ## How to use
 
-The `FlowMon_drift.Rmd` is the core script. By taking `qtrYr` as the input, data in the specific quarter-year are queried from the `CentralDB` database, then analyzed for breakouts by functions from the `breakoutDetection` package. A table is generated that includes the detected breakouts, and time-series plots are generated for each monitored site with breakouts annotated. The output is a HTML report, including the breakouts table and plots. All reports are saved in the /reports subfolder.
+The `FlowMon_drift.Rmd` is the core script. By taking `qtrYr` as the input, data in the specific quarter-year are queried from the `CentralDB` database, then analyzed for breakouts by functions from the `breakoutDetection` package. A table is generated that includes the detected breakouts, and time-series plots are generated for each monitored site with breakouts annotated. The output is a HTML report, including the breakouts table and plots. All reports are saved in the `/reports` subfolder.
 
 There are two methods to generate a new report: 
 

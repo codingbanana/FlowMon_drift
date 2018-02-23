@@ -1,0 +1,45 @@
+---
+title: "Breakout detection function arguments optimization"
+date: "Feburary 23, 2018"
+author: "[Hao Zhang](mailto:hao.zhang@phila.gov)"
+output: html_notebook
+
+---
+## Motivation
+
+The `breakout()` function in the `BreakoutDetection` package contains several arguments, which determines the outcome of the analysis, i.e., the count and location of breakouts. However, the package manual doesn't give much details regarding how the parameters should be set. Therefore, The model is trained through a series of supervised trials based on actual flow data.  
+
+## Methodology
+
+The training process is implemented in `model_training.R`. The studied time-series is quarterly flow monitoring data, which are downloaded from CentralDB (a PostgreSQL database). For better efficiency, the data are then subsetted by hour. The `method` argument is set to 'multi' as it's desired for this analysis. Default values were set for the other arguments (min.size, degree, beta, percent) in the 'input' section. Since the default EDM method only uses the nearest neibourghs for smoothing anomalies, an additional argument, the 'window' argument is also discussed in this study, which represents the width of the rolling median window (must be even) for the additional roll median filter.
+
+For each argument, the value is varied by a sequence of values while keeping the rest constant (default value), and the resulting count of breakouts is plotted against the value of the arugment, which is the 'elbow plot'. The elbow plot demostrates the sensitivity of an argument under a single-varible assumption, and indicate the proper range of the argument, which is helpful for setting value for new scenarios. Based on the results, a new set of default values (scenario) is proposed, and the process is repeated until the desired outcome is met. 
+
+## Results
+
+6 independent time-series are analyzed in this study. The breakout count and locations identified by the breakout() are compared with visual inspection. An outcome is deemed 'satisfactory' when the outcome matches or outperforms the expectation. 
+
+The values of argument are summarized in the "tracking_shseet.xlsx". 
+```{r}
+library(readxl)
+read_xlsx('tracking_sheet.xlsx')
+
+```
+
+As seen, the `beta` is most sensitive, larger value stands for higher penalization (for false positive) and thus less breakouts. The value generally ranges from 0.0008 to 0.002. (does it depending on the number scale?) Normally it only affects the number of breakouts, but for some cases when there is only one breakout, it's location may be off.
+
+The `percent` is only affective when `beta` is absent. It stands for the minimum percent change in the goodness of fit statistic to consider adding an additional change pointand thus higher values leads to less breakouts. 
+
+The `min.size` is also sensitive, larger value stands for longer distance between breakouts and thus less breakouts.  The value generally ranges from 60 to 240, and it should also be subject to the data analyst's experience. Improperly setting the value may result in too many or too few breakouts.
+
+The `degree` has only 3 values, 0,1,2, which stands for the order of penalization (for false positive), and thus larger value leads to less breakouts. In most cases, 1st order penalization is sufficient, while 2nd order penalization may be used for detecting slight changes in mean. For detecting divergence in mean, degree is set to 2; for detecting arbitrary change in distribution, 0 < degree < 2 may be a better choice(Sz&egrave;kely & Rizzo 2005)
+
+The `window` also affects the detection of breakouts, larger window size stands for higher smoothness, but the number of breakout is not following a direct trend with it. 
+
+## References
+
+G. J.Sz&egrave;kely and M. L. Rizzo. Hierarchical clustering via joint
+between-within distances: Extending ward’s minimum variance method.
+Journal of classification, 22(2):151–183, 2005.
+
+
