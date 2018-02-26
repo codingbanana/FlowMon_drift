@@ -6,12 +6,12 @@ library(BreakoutDetection)
 library(zoo)
 
 ######## input ##########
-site='D45-000015'
-qtrYr='Q2-16'
+site='THL-0085'
+qtrYr='Q4-16'
 type='level'
-min.size.default=60
+min.size.default=120
 degree.default=1
-beta.default=0.0003
+beta.default=0.002
 percent.default=NULL
 #########################
 

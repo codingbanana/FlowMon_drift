@@ -86,12 +86,10 @@ breakouts <- function(site, plot=F){
     
     lvl.breakouts <- breakout(
                  lvl.hr, 
-                 min.size = 240, # equals 10 days of data,
-                                 # i.e., the shift must last more than 10 days
+                 min.size = 120, # refer to model_training.R
                  method = 'multi',
-                 degree=1,      # default
-                 beta=0.008,    # default, but cannot be omitted
-                 percent=0.10,
+                 degree=1,      
+                 beta=0.002,    
                  plot=F)
     
     if(length(lvl.breakouts$loc)){
@@ -141,12 +139,10 @@ breakouts <- function(site, plot=F){
 
     vel.breakouts <- 
         breakout(vel.hr,
-                 min.size = 240, # equals 10 days of data,
-                                 # i.e., the shift must last more than 10 days
+                 min.size = 120, # refer to model_training.R
                  method = 'multi',
-                 degree=1,      # default
-                 beta=0.008,    # default, but cannot be omitted
-                 percent=0.10,
+                 degree=1,     
+                 beta=0.008,    
                  plot=F)
 
     if(length(vel.breakouts$loc)){

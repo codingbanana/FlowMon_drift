@@ -2,8 +2,10 @@
 title: 'Breaking Bad: robust Breakout detection based on E-Divisive with Medians (EDM)
   for modeling data quality control'
 author: "Hao Zhang"
-date: "Feburary 23, 2018"
-output: word_document
+date: "February 23, 2018"
+output: 
+  word_document:
+    reference_docx: "CHI Paper Template 2014.docx"
 ---
 
 <center><h3>ABSTRACT</h3></center>
@@ -21,11 +23,10 @@ The analysis is implemented in a program written in R, and the EDM algorithm is 
 ### 1  BACKGROUND
 
 The Philadelphia Water Department (PWD) maintains hydrologic and hydraulic models of the combined sewer collection system for planning, management and compliance purposes. PWD relies on these models to evaluate the effectiveness of existing and proposed CSO control measures. Efforts are being made to refine the models and improve their accuracy as the program progresses from planning to implementation phases. Since the 2000s, PWD has been monitoring the sewerage level and velocity at over 400 manholes across the city for various model calibration/validation tasks. Data are measured at 15-minute interval, which are collected bi-weekly by contractor.
-
 ![](Basemapv10d - PWD.jpg)
-Figure 1. Philadelphia Combined Sewer H&H Model and flow monitoring sites
+Figure 1. Map of Philadelphia, showing the combined sewer H&H Model, and flow monitoring sites used for model calibration/validation
 
-Due to the high solid content in sewage, level and velocity measurements at sewer pipes may suffered from breakouts (mean shift, ramp up) over the time due to sensor ragging, clogging, or pipe surcharging, etc. A stringent Quality Control (QC) protocol is conducted before the data can be used for Hydrologic & Hydraulic modeling tasks. As one QC measure, the water level and velocity data are examined to detect potential breakouts. Since a breakout isn’t always obvious in time-series plots, visually identifing breakouts is not sufficient and efficient. Hence, a statistical approach that can automatically detect breakouts in a time-series is imperative. 
+Due to the high solid content in sewage, level and velocity measurements at sewer pipes may suffered from breakouts (mean shift, ramp up) over the time due to sensor ragging, clogging, or pipe surcharging, etc. A stringent Quality Control (QC) protocol is conducted before the data can be used for Hydrologic & Hydraulic modeling tasks. As one QC measure, the water level and velocity data are examined to detect potential breakouts. Since a breakout isn’t always obvious in time-series plots, visually identifying breakouts is not sufficient and efficient. Hence, a statistical approach that can automatically detect breakouts in a time-series is imperative. 
 
 Since flow data at both combined and sanitary sewer pipes has runoff/RDII components, it may interfere the breakout detection. Therefore, the algorithm must be robust against the presence of anomalies.
 
@@ -37,11 +38,11 @@ Data quality determines the overall model quality. This study aims to develop a 
 
 -   able to detect various types of change (mean, variance, distribution)
 
--   able to detect mulitple breakouts 
+-   able to detect multiple breakouts 
 
 -   weak or no assumption on data distribution
 
--   fast on large datasets, produce reliable results 
+-   fast on large data-sets, produce reliable results 
 
 Then the algorithm parameters are carefully tuned to optimize the outcome.
 
@@ -72,83 +73,92 @@ A comparison (James, et al. 2016) between EDM and Pruned Exact Linear Time (PELT
 
 Several R packages can perform breakout detection, such as the `changepoint` package implements the PELT and ... method (Killick & Eckley, 2014), the `ecp` package implements the E-divisive and E-agglometric methods (Matteson & James 2012), and the `BreakoutDetection` package implements the EDM method (James, et al. 2016). The package is developed by Twitter engineers and has been used for analyzing network breakouts on a daily basis at Twitter Inc.
 
-The `breakout()` is the detector function, which has several arguments that specify the cost and penalty. The `method` specifies if a single or multiple breakouts is desired, in this study, the value is set to 'multi' for multiple changes. The `min.size` specifies the minimum number of observations between change points. larger value stands for longer distance between breakouts and thus less breakouts. The value generally ranges from 60 to 240, and it should also be subject to the data analyst's experience. Improperly setting the value may result in too many or too few breakouts. The `degree` specifies the degree of the penalization polynomial (for false positive), the value can only be 0, 1, or 2, and larger value tends to detect fewer breakouts. For detecting divergence in mean, degree is set to 2; for detecting arbitrary change in distribution, 0 < degree < 2 may be a better choice (Sz&egrave;kely & Rizzo 2005). The `beta` and `percent` specify the amount of penalization (for false positive). The `beta` generally ranges from 0.00001 to 0.01, where larger value tends to detect less breakouts. The `percent` represents the minimum percent change in the goodness of fit statistic to consider adding an additional change point, which generally ranges from 0.1 to 0.5, and larger value tends to detect less breakouts. Note that when `beta` is specified, `percent` won't be used.
+The `breakout()` is the detector function, including several arguments that specify the cost and penalty. The `method` specifies if a single or multiple breakouts is desired. The `min.size` specifies the minimum number of observations between change points. larger value stands for longer distance between breakouts and thus less breakouts. The value generally ranges from 60 to 240, and it should also be subject to the data analyst's experience on the occurence frequency of breakouts. Improperly setting the value may result in too many or too few breakouts. The `degree` specifies the degree of the penalization polynomial (for false positive), the value can only be 0, 1, or 2, and larger value tends to detect fewer breakouts. Sz&egrave;kely & Rizzo (2005) claims that for detecting divergence in mean, degree is set to 2; for detecting arbitrary change in distribution, 0 < `degree` < 2 may be a better choice. The `beta` and `percent` specify the amount of penalization (for false positive). The `beta` generally ranges from 10^-5^ to 10^-2^, where larger value tends to detect less breakouts. The `percent` represents the minimum percent change in the goodness of fit statistic to consider adding an additional change point, which generally ranges from 0.1 to 0.6, and larger value tends to detect less breakouts. Note that when `beta` is specified, `percent` is skipped.
 
-####  3.4  `breakout()` function argument refinement
+####  3.4 breakout() argument refinement
 
-Arguments in the `breakout()` function significantly affect the outcome, i.e., the count and location of breakouts. To improve the result, the arguments are refined through a series of supervised trials based on 6 independent flow monitoring time-series data. 
+Arguments of the `breakout()` function significantly affect the outcome, i.e., the count and location of breakouts. To improve the result, the arguments are refined through a series of supervised trials based on multiple independent flow monitoring time-series, each contains 3 months of hourly level or velocity measurements. The `method` argument is fixed to 'multi' as it's desired for this analysis. 
 
-The studied time-series is quarterly flow monitoring data, which are downloaded from CentralDB (a PostgreSQL database). For better efficiency, the data are then subsetted by hour. The `method` argument is set to 'multi' as it's desired for this analysis. Default values were set for the other arguments (`min.size`, `degree`, `beta`, `percent`) in the 'input' section. Since the default EDM method only uses the nearest neibourghs for smoothing anomalies, an additional argument `window` is also discussed in this study, which represents the width of window (must be even) for the additional rolling median filter.
+The training process is implemented via a R script. Default values were set for `min.size`, `degree`, `beta`, `percent` arguments in the 'input' section. Since EDM only uses the nearest neighbors for smoothing, an additional rolling median filter is applied to data before analyzed by the detector function, and the argument `smoother` is also discussed, which represents the width of window for the rolling median. 
 
-The training process is implemented in a R script. For each argument, the value is varied by a sequence of values while keeping the rest constant (default value), and the resulting count of breakouts is plotted against the value of the arugment, which is the 'elbow plot'. The elbow plot demostrates the sensitivity of an argument under a single-varible assumption, and indicate the proper range of the argument, which is helpful for setting value for new scenarios. Based on the results, a new set of default values (scenario) is proposed, and the process is repeated until the desired outcome is met. 
+For each argument, the value of the specific argument is varied by a series of values while keeping the rest constant (default value), and the count of breakouts detected is plotted against the value of the argument, which is called the 'elbow plot' as shown in Figure 2. The elbow plot demonstrates the sensitivity of an argument under a single-variable condition, and gives indication on the proper range of the argument (near the 'elbow'), which is helpful for setting value for the next trial. Based on the results, a new set of argument values is proposed, and the process is repeated until the desired outcome is met. 
+
+![](THL-0085_Q4-16_level_minsize.120_degree.1_beta.0.002_percent..png)
+
+Figure 2 An example of elbow plots used for breakout() argument refinement
 
 ### RESULTS
 
-After a thorough literature review and testing with sample data, the E-Divisive with Medians (EDM) algorithm is adopted in this study.
+After literature review and sample tests, the E-Divisive with Medians (EDM) algorithm is adopted in this study because of its robustness against anomalies and weak assumption on the data distribution. The detector function arguments are carefully tuned through a series of trials,and the results are summarized in table 1.  
 
-Based on a series of tests, the breakout() function arguments are set to: 
+Table 1  Summary of value for `breakout()` arguments 
 
--   min.size = 240, (240 = 10 days x 24 sample/day =  samples)
--   degree = 1
--   beta = 0.008, determined by elbow plot
--   percent: not used
-
-[show elbow plot examples]
-
-A R markdown document is developed that includes scripts for breakout detection, summarize the results, and plot breakouts with time-series for multiple sites. To improve the performance, parallel computation is utilized.
-The output is a quarterly report that includes a summary table of breakouts, and hydrographs for all sites with hyetograph overlaid. The report is automatically updated bi-weekly when data is updated. In the future, it's expected to be updated more frequently when real-time data becomes available. 
+argument | level | velocity
+---------|-------|----------
+min.size |  120  | 120
+degree   |   1   |  1 
+beta     | 0.002 | 0.008 
+percent  |  NA   |  NA
 
 
-A few breakout examples based on real data are shown in Fig.xxx. a) shows an 
-positive change in level and a negative change in velocity near August 1, 2017, and it resets to its original values near August 22, 2017.  This is typically caused by pipe surcharging. 
+The `min.size` is set to 120 for both parameter, which stands for 5 days of duration. The `degree` is set to 1 as it's sufficient to detect both mean shift and distribution changes. The `beta` is larger for velocity than level because velocity is relatively less stable, and a more strigent penalty is hereby needed to aviod "overkill" for breakout detection.  The `percent` is not applicable as `beta` has already been specified. The `smoother` is not used as it tends to generate more breakouts, which may be useful for detecting breakouts in time-series with heavy noise.
 
-![](IALL-0008_17Q3_surcharge.png)
-b) shows a sudden downward shift on November 11, 2014. The opposite trend is observed in the level data, but the breakout was not detected somehow.  
+The breakout detection process is implemented in a R script. To improve the performance, multi-thread parallel computation is utilized where multiple time-sereis are examined simultaneously. 
+
+A R markdown document is developed that executes the breakout detection script, and generates a quarterly report that include a summary of the results, and hydrograph-hyetograph for all sites with breakouts information overlaid.  The report is automatically updated bi-weekly when new data is uploaded. In the future, it's expected to be updated more frequently when real-time data becomes available. 
+
+A few breakout examples are shown in Figure 3 to Figure 6. 
+
+Figure 3 and 4 demostrate the 'mean shift' (sudden change) and 'ramping' (gradual change) types of breakouts detected by the EDM method. In Figure 3, a breakout is detected near November 11, 2014. In Figure 4, a breakout is detected near 
 
 ![](D45-000015_14Q4_shift_down.png)
+Figure 3. breakout detection for LFLL-0015 for the period of Q2, 2015
+
+![](S051-08-S0015_16Q4_rampup.png)
+Figure 4. breakout detection for S051-08-S0015 for the period of Q4, 2016
 
 
-c) flushing effect?
+Figure 5 shows two breakouts near August 1, 2017 and August 22, 2017 for both level and velocity, where the level for temporarily elevated and the velocity decreased. This is likely caused by pipe clogging that reduced the cross-sectional area of the pipe. Figure 6 shows an opposite pattern, which could be related to the flushing and resettlement of silts during the period.  
+![](IALL-0008_17Q3_surcharge.png)
+
+Figure 5. breakout detection for IALL-0008 for the period of Q3, 2017
 
 ![](THL-0085_16Q1_surcharging.png)
+Figure 6. breakout detection for THL-0085 for the period of Q1, 2016
 
-![](LFLL_0015.png)
+There are two limitations for this method. First, due to the non-parametric natural of this method, breakouts at both ends of the time-series cannot be detected (e.g., as shown at the begining of Figure 5), which can be solved by extending the range of the data. Second, large runoff events may be identified as breakouts (as shown in Figure 7) as the EDM only calculates the rolling median with the nearest neighbors. Therefore, an additional smoother may be imperative. 
 
-limitation:
-
--   cannot detect breakouts at both ends of the time-series
-
--   large runoff response may be identified as breakouts
-
+![](WHL-0110_14Q2_failure.png)
+Figure 7. breakout detection for WHL-0110 for the period of Q2, 2014
 
 ### CONCLUSIONS
  
-EDM is proven to be a reliable, effective, and efficient breakouts detection technique for flow monitoring data (level & velocity) with properly tuned parameters. This method is expected to be applicable for other monitiored time-series data, such as outfall levels at CSO regulators.
-
-In this study, A R application that utilizes EDM for breakout detection is developed. This analysis provides a quality control to the modeling data, which would be beneficial for improving the model quality, and quickly respond to field issues. This analysis is also applicable for other monitored data, such as the trunk and outfall levels at drainage system regulators.
+E-divisive with Median (EDM) is proven to be a reliable, effective, and efficient breakout detection technique that has been adopted by Twitter Inc. for cloud data. In this study, An application of EDM for detecting breakouts in flow monitoring data was explored and has received satisfactory results. A workflow has been established via R scripts and R markdown documents. This application provides Quality Control(QC) to the modeling data, which would be beneficial for improving the model quality and is also helpful for quick response to field issues. With properly tuned parameters, this method is expected to be applicable for other monitored time-series data, such as trunk and outfall levels in combined sewer drainage system.
 
 ### REFERENCE
 
-James, Nicholas A., Arun Kejariwal, and David S. Matteson. "Leveraging cloud data to mitigate user experience from ‘Breaking Bad’: The Twitter Approach." In Big Data (Big Data), 2016 IEEE International Conference on, pp. 3499-3508. IEEE, 2016.
+James, Nicholas A., Kejariwal, Arun, and Matteson, David S. 2016."Leveraging cloud data to mitigate user experience from ‘Breaking Bad’: The Twitter Approach." *2016 IEEE International Conference on Big Data* 3499-3508.
 
-Matteson, David S., and James, Nicholas A. "A nonparametric approach for multiple change point analysis of multivariate data." Journal of the American Statistical Association 109, no. 505 (2014): 334-345.
+Matteson, David S., and James, Nicholas A. 2014. "A non-parametric approach for multiple change point analysis of multivariate data." *Journal of the American Statistical Association* 109(505): 334-345.
 
-James, Nicholas A., and David S. Matteson. "ecp: An R package for nonparametric multiple change point analysis of multivariate data." arXiv preprint arXiv:1309.3295 (2013).
+James, Nicholas A., and David S. Matteson. 2013. "ecp: An R package for non-parametric multiple change point analysis of multivariate data." arXiv:1309.3295.
 
-Edwards, Robert D., Magee, John, and Bassetti, W.H.C.. "Technical analysis of stock trends". CRC Press, 2012
+Edwards, Robert D., Magee, John, and Bassetti, W.H.C. 2012. "Technical analysis of stock trends." CRC Press.
 
-Jie Chen and Arjun K Gupta. Parametric Statistical Change Point Analysis: With Applications to Genetics, Medicine, and Finance. Springer, 2011.
+Chen, J. and Gupta, Arjun K. 2011. "Parametric Statistical Change Point Analysis: With Applications to Genetics, Medicine, and Finance." Springer.
 
-Mich&egrave;le Basseville. Detecting changes in signals and systemsa survey. Automatica, 24(3):309–326, 1988
+Basseville, Mich&egrave;le 1988. "Detecting changes in signals and systems survey." *Automatica*, 24(3):309–326.
 
-Killick, Rebecca, and Idris Eckley. "changepoint: An R package for changepoint analysis." Journal of statistical software 58, no. 3 (2014): 1-19
+Killick, Rebecca, and Eckley, Idris 2014. "changepoint: An R package for changepoint analysis." *Journal of statistical software* 58(3): 1-19.
 
-Rebecca Killick, Paul Fearnhead, and IA Eckley. Optimal detection of changepoints with a linear computational cost. Journal of the American Statistical Association, 107(500):1590–1598, 2012
+Rebecca Killick, Paul Fearnhead, and IA Eckley 2012. "Optimal detection of changepoints with a linear computational cost." *Journal of the American Statistical Association*, 107(500):1590–1598.
 
-Rodionov, S. N. "A brief overview of the regime shift detection methods." Large-scale disturbances (regime shifts) and recovery in aquatic ecosystems: challenges for management toward sustainability (2005): 17-24.
+Rodionov, S. N. 2005. "A brief overview of the regime shift detection methods." *Large-scale disturbances (regime shifts) and recovery in aquatic ecosystems: challenges for management toward sustainability* 17-24.
 
-Pohlert, Thorsten. "Non-parametric trend tests and change-point detection." CC BY-ND 4 (2018).
+Pohlert, Thorsten. 2018. "Non-parametric trend tests and change-point detection." CC BY-ND 4.
 
-G. J.Sz&egrave;kely and M. L. Rizzo. Hierarchical clustering via joint
-between-within distances: Extending ward’s minimum variance method.
-Journal of classification, 22(2):151–183, 2005.
+Sz&egrave;kely, G. J. and Rizzo, M. L. 2005. "Hierarchical clustering via joint between-within distances: Extending ward’s minimum variance method."
+*Journal of classification* 22(2):151–183.
+
+### Author Affiliations
+Hao Zhang, Ph.D., Philadelphia Water Department, Philadelphia, PA.

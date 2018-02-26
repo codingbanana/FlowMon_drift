@@ -36,6 +36,22 @@ The `degree` has only 3 values, 0,1,2, which stands for the order of penalizatio
 
 The `window` also affects the detection of breakouts, larger window size stands for higher smoothness, but the number of breakout is not following a direct trend with it. 
 
+
+Conclusion
+
+The results are summarized in table 1.  
+
+Table 1  Summary of value for `breakout()` arguments 
+
+argument | level | velocity
+---------|-------|----------
+min.size |  120  | 120
+degree   |   1   |  1 
+beta     | 0.002 | 0.008 
+percent  |  NA   |  NA
+
+The `min.size` is set to 120 for both parameter, which stands for 5 days of duration. The `degree` is set to 1 as it's sufficient to detect both mean shift and distribution changes. The `beta` is larger for velocity than level because velocity is relatively less stable, and a more strigent penalty is hereby needed to aviod "overkill" for breakout detection.  The `percent` is not applicable as `beta` has already been specified. The `smoother` is not used as it tends to generate more breakouts, which may be useful for detecting breakouts in time-series with heavy noise.
+
 ## References
 
 G. J.Sz&egrave;kely and M. L. Rizzo. Hierarchical clustering via joint
