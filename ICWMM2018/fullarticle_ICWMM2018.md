@@ -51,7 +51,7 @@ Finally, an application is developed in the R statistical programming language f
 ### 3  METHODOLOGY
 #### 3.1  Change point analysis
 
-In statistics, the 'breakout detection' belongs to the change point analysis, which has been widely researched over the past 50 years in a wide variety of fields (Rodionov 2005), such as finance (Edwards et al 2012), genetics (Chen and Gupta 2011), and signal processing (Basseville 1988). As we've entered the 'Big Data' era, it has gain it's popularity in low latency, high reliability online analytics for cloud data (James, et al. 2016).
+In statistics, the 'breakout detection' belongs to the change point analysis, which has been widely researched over the past 50 years in a wide variety of fields (Rodionov 2005), such as finance (Edwards et al 2012), genetics (Chen and Gupta 2011), and signal processing (Basseville 1988). As we've entered the 'Big Data' era, it has gain it's popularity in low latency, high reliability online analytics for cloud data (James et al 2016).
 
 A breakout is typically characterized by two steady states and an intermediate transition period. Mathematically, for data z<sub>1</sub>,…,z<sub>n</sub>, if a changepoint exists at τ, then z<sub>1</sub>,…,z<sub>τ</sub> differ from z<sub>τ+1</sub>,…,z<sub>n</sub> in some way. There are many different types of change, such as mean shift, which is a sudden jump in the time series; Ramp up/down, which is a gradual change in the value of the metric from one steady state to another; distribution change, which is a change in the data distribution. 
 
@@ -83,9 +83,9 @@ The training process is implemented via a R script. Default values were set for 
 
 For each argument, the value of the specific argument is varied by a series of values while keeping the rest constant (default value), and the count of breakouts detected is plotted against the value of the argument, which is called the 'elbow plot' as shown in Figure 2. The elbow plot demonstrates the sensitivity of an argument under a single-variable condition, and gives indication on the proper range of the argument (near the 'elbow'), which is helpful for setting value for the next trial. Based on the results, a new set of argument values is proposed, and the process is repeated until the desired outcome is met. 
 
-![](THL-0085_Q4-16_level_minsize.120_degree.1_beta.0.002_percent..png)
+![](THL-0085_Q2-16_level_minsize.120_degree.1_beta.0.005_percent..png)
 
-Figure 2 An example of elbow plots used for breakout() argument refinement
+Figure 2 An example of elbow plots used in the process of argument refinement
 
 ### RESULTS
 
@@ -101,15 +101,15 @@ beta     | 0.002 | 0.008
 percent  |  NA   |  NA
 
 
-The `min.size` is set to 120 for both parameter, which stands for 5 days of duration. The `degree` is set to 1 as it's sufficient to detect both mean shift and distribution changes. The `beta` is larger for velocity than level because velocity is relatively less stable, and a more strigent penalty is hereby needed to aviod "overkill" for breakout detection.  The `percent` is not applicable as `beta` has already been specified. The `smoother` is not used as it tends to generate more breakouts, which may be useful for detecting breakouts in time-series with heavy noise.
+The `min.size` is set to 120 for both parameter, which stands for 5 days of duration. The `degree` is set to 1 as it's sufficient to detect both mean shift and distribution changes. The `beta` is larger for velocity than level because velocity is relatively less stable, and a more stringent penalty is hereby needed to avoid "overkill" for breakout detection.  The `percent` is not applicable as `beta` has already been specified. The `smoother` is not used as it tends to generate more breakouts, which may be useful for detecting breakouts in time-series with heavy noise.
 
-The breakout detection process is implemented in a R script. To improve the performance, multi-thread parallel computation is utilized where multiple time-sereis are examined simultaneously. 
+The breakout detection process is implemented in a R script. To improve the performance, multi-thread parallel computation is utilized where multiple time-series are examined simultaneously. 
 
 A R markdown document is developed that executes the breakout detection script, and generates a quarterly report that include a summary of the results, and hydrograph-hyetograph for all sites with breakouts information overlaid.  The report is automatically updated bi-weekly when new data is uploaded. In the future, it's expected to be updated more frequently when real-time data becomes available. 
 
 A few breakout examples are shown in Figure 3 to Figure 6. 
 
-Figure 3 and 4 demostrate the 'mean shift' (sudden change) and 'ramping' (gradual change) types of breakouts detected by the EDM method. In Figure 3, a breakout is detected near November 11, 2014. In Figure 4, a breakout is detected near 
+Figure 3 and 4 demonstrate the 'mean shift' (sudden change) and 'ramping' (gradual change) types of breakouts detected by the EDM method. In Figure 3, a breakout is detected near November 11, 2014. In Figure 4, a breakout is detected near 
 
 ![](D45-000015_14Q4_shift_down.png)
 Figure 3. breakout detection for LFLL-0015 for the period of Q2, 2015
@@ -126,7 +126,7 @@ Figure 5. breakout detection for IALL-0008 for the period of Q3, 2017
 ![](THL-0085_16Q1_surcharging.png)
 Figure 6. breakout detection for THL-0085 for the period of Q1, 2016
 
-There are two limitations for this method. First, due to the non-parametric natural of this method, breakouts at both ends of the time-series cannot be detected (e.g., as shown at the begining of Figure 5), which can be solved by extending the range of the data. Second, large runoff events may be identified as breakouts (as shown in Figure 7) as the EDM only calculates the rolling median with the nearest neighbors. Therefore, an additional smoother may be imperative. 
+There are two limitations for this method. First, due to the non-parametric natural of this method, breakouts at both ends of the time-series cannot be detected (e.g., as shown at the beginning of Figure 5), which can be solved by extending the range of the data. Second, large runoff events may be identified as breakouts (as shown in Figure 7) as the EDM only calculates the rolling median with the nearest neighbors. Therefore, an additional smoother may be imperative. 
 
 ![](WHL-0110_14Q2_failure.png)
 Figure 7. breakout detection for WHL-0110 for the period of Q2, 2014

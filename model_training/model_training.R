@@ -1,4 +1,4 @@
-if (!grepl("model_training",getwd())) setwd('model_training')
+if (!grepl("model_training", getwd())) setwd('model_training')
 library(tidyverse)
 library(lubridate)
 library(RPostgreSQL)
@@ -6,12 +6,12 @@ library(BreakoutDetection)
 library(zoo)
 
 ######## input ##########
-site='THL-0085'
-qtrYr='Q4-16'
-type='level'
+site='IALL-0008'
+qtrYr='Q3-17'
+type='velocity'
 min.size.default=120
 degree.default=1
-beta.default=0.002
+beta.default=0.007
 percent.default=NULL
 #########################
 
